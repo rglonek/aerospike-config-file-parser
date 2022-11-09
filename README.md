@@ -96,7 +96,7 @@ func main() {
 	s.Stanza("network").Stanza("info").SetValue("port", "3003")
 
 	// write back contents of 's'
-	err = s.Write("/etc/aerospike", "", "    ", true)
+	err = s.WriteFile("/etc/aerospike", "", "    ", true)
 	if err != nil {
 		log.Fatal(err)
 	}
