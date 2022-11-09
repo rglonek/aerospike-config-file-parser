@@ -113,7 +113,28 @@ func TestParseBasic(t *testing.T) {
 	}
 	fmt.Println(s.Type("service"))
 	fmt.Println(s.Stanza("service").Type("proto-fd-max"))
-	s.Stanza("service")["proto-fd-max"] = "30000"
+	out, _ := s.Stanza("service").GetValues("proto-fd-max")
+	for _, i := range out {
+		fmt.Println(*i)
+	}
+	if s.Stanza("service") == nil {
+		s.NewStanza("service")
+	}
+	s.Stanza("service").SetValue("proto-fd-max", "30000")
+
+	if s.Stanza("network") == nil {
+		s.NewStanza("network")
+	}
+	if s.Stanza("network").Stanza("heartbeat") == nil {
+		s.Stanza("network").NewStanza("heartbeat")
+	}
+	s.Stanza("network").Stanza("heartbeat").Delete("multicast-group")
+	s.Stanza("network").Stanza("heartbeat").SetValue("mode", "mesh")
+	s.Stanza("network").Stanza("heartbeat").SetValues("mesh-seed-address-port", SliceToValues([]string{"172.17.0.2 3000", "172.17.0.3 3000"}))
+
+	s.Stanza("network").Delete("info")
+	s.Stanza("network").NewStanza("info")
+	s.Stanza("network").Stanza("info").SetValue("port", "3003")
 	err = s.Write(os.Stdout, "", "    ", true)
 	if err != nil {
 		fmt.Println(err)

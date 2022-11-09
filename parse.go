@@ -75,9 +75,18 @@ func (s stanza) parseLines(scanner *bufio.Scanner) (err error) {
 				return errors.New("line is not a `key value': " + linex)
 			}
 			if len(kv) == 1 {
-				s[kv[0]] = nil
+				if _, ok := s[kv[0]]; !ok {
+					s[kv[0]] = []*string{nil}
+				} else {
+					s[kv[0]] = append(s[kv[0]].([]*string), nil)
+				}
 			} else {
-				s[kv[0]] = strings.Join(kv[1:], " ")
+				vv := strings.Join(kv[1:], " ")
+				if _, ok := s[kv[0]]; !ok {
+					s[kv[0]] = []*string{&vv}
+				} else {
+					s[kv[0]] = append(s[kv[0]].([]*string), &vv)
+				}
 			}
 		}
 	}
@@ -168,6 +177,20 @@ func (s stanza) writeLine(w io.Writer, prefix string, indent string, currentInde
 		if err != nil {
 			return errors.New("cannot write: " + err.Error())
 		}
+	case []string:
+		for _, vv := range v {
+			_, err = w.Write([]byte(prefix + currentIndent + k + " " + vv + "\n"))
+			if err != nil {
+				return errors.New("cannot write: " + err.Error())
+			}
+		}
+	case []*string:
+		for _, vv := range v {
+			_, err = w.Write([]byte(prefix + currentIndent + k + " " + *vv + "\n"))
+			if err != nil {
+				return errors.New("cannot write: " + err.Error())
+			}
+		}
 	case stanza:
 		_, err = w.Write([]byte(prefix + currentIndent + k + " {\n"))
 		if err != nil {
@@ -194,7 +217,7 @@ func (s stanza) writeLine(w io.Writer, prefix string, indent string, currentInde
 
 func (s stanza) Type(key string) ValueType {
 	switch s[key].(type) {
-	case string:
+	case string, []string, []*string:
 		return ValueString
 	case nil:
 		return ValueNil
@@ -212,4 +235,69 @@ func (s stanza) Stanza(key string) stanza {
 	default:
 		return nil
 	}
+}
+
+func (s stanza) GetValues(key string) ([]*string, error) {
+	ret := []*string{}
+	switch k := s[key].(type) {
+	case string:
+		ret = append(ret, &k)
+	case []string:
+		for _, kk := range k {
+			ret = append(ret, &kk)
+		}
+	case []*string:
+		ret = k
+	case nil:
+		return nil, nil
+	case stanza:
+		return nil, errors.New("type is stanza")
+	default:
+		return nil, errors.New("unknown type")
+	}
+	return ret, nil
+}
+
+func (s stanza) SetValue(key string, value string) error {
+	if s == nil {
+		return errors.New("stanza does not exist")
+	}
+	s[key] = value
+	return nil
+}
+
+func (s stanza) SetValues(key string, values []*string) error {
+	if s == nil {
+		return errors.New("stanza does not exist")
+	}
+	s[key] = values
+	return nil
+}
+
+func SliceToValues(val []string) []*string {
+	r := []*string{}
+	for _, v := range val {
+		v := v
+		r = append(r, &v)
+	}
+	return r
+}
+
+func (s stanza) Delete(key string) error {
+	if s == nil {
+		return errors.New("stanza does not exist")
+	}
+	delete(s, key)
+	return nil
+}
+
+func (s stanza) NewStanza(key string) error {
+	if s == nil {
+		return errors.New("parent stanza does not exist")
+	}
+	if _, ok := s[key]; ok {
+		return errors.New("stanza already exists")
+	}
+	s[key] = make(stanza)
+	return nil
 }
