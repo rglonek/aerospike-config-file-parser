@@ -57,13 +57,13 @@ func SliceToValues(val []string) []*string
 
 ```go
 func main() {
-    // parse file into 's'
+	// parse file into 's'
 	s, err := aeroconf.ParseFile("/etc/aerospike.conf")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-    // print types of variables
+	// print types of variables
 	fmt.Println(s.Type("service"))
 	fmt.Println(s.Stanza("service").Type("proto-fd-max"))
 
@@ -73,7 +73,7 @@ func main() {
 		fmt.Println(*i)
 	}
 
-    // adjust value of proto-fd-max
+	// adjust value of proto-fd-max
 	if s.Stanza("service") == nil {
 		s.NewStanza("service")
 	}
@@ -95,7 +95,7 @@ func main() {
 	s.Stanza("network").NewStanza("info")
 	s.Stanza("network").Stanza("info").SetValue("port", "3003")
 
-    // write back contents of 's'
+	// write back contents of 's'
 	err = s.Write("/etc/aerospike", "", "    ", true)
 	if err != nil {
 		log.Fatal(err)
