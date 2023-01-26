@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-type stanza map[string]interface{}
+type Stanza map[string]interface{}
 
 type ValueType string
 
@@ -18,7 +18,7 @@ const ValueNil = ValueType("nil")
 const ValueStanza = ValueType("stanza")
 const ValueUnknown = ValueType("unknown")
 
-func ParseFile(f string) (s stanza, err error) {
+func ParseFile(f string) (s Stanza, err error) {
 	var r *os.File
 	r, err = os.Open(f)
 	if err != nil {
@@ -28,14 +28,14 @@ func ParseFile(f string) (s stanza, err error) {
 	return Parse(r)
 }
 
-func Parse(r io.Reader) (s stanza, err error) {
-	s = make(stanza)
+func Parse(r io.Reader) (s Stanza, err error) {
+	s = make(Stanza)
 	scanner := bufio.NewScanner(r)
 	err = s.parseLines(scanner)
 	return s, err
 }
 
-func (s stanza) parseLines(scanner *bufio.Scanner) (err error) {
+func (s Stanza) parseLines(scanner *bufio.Scanner) (err error) {
 	for scanner.Scan() {
 		// read line, ignore empty lines
 		linex := scanner.Text()
@@ -59,7 +59,7 @@ func (s stanza) parseLines(scanner *bufio.Scanner) (err error) {
 			if len(k) == 0 {
 				return errors.New("line has empty stanza name: " + linex)
 			}
-			sub := make(stanza)
+			sub := make(Stanza)
 			err = sub.parseLines(scanner)
 			if err != nil {
 				return
@@ -93,7 +93,7 @@ func (s stanza) parseLines(scanner *bufio.Scanner) (err error) {
 	return
 }
 
-func (s stanza) WriteFile(f string, prefix string, indent string, sortItems bool) (err error) {
+func (s Stanza) WriteFile(f string, prefix string, indent string, sortItems bool) (err error) {
 	w, err := os.Create(f)
 	if err != nil {
 		return errors.New("creating file: " + err.Error())
@@ -102,7 +102,7 @@ func (s stanza) WriteFile(f string, prefix string, indent string, sortItems bool
 	return s.Write(w, prefix, indent, sortItems)
 }
 
-func (s stanza) Write(w io.Writer, prefix string, indent string, sortItems bool) (err error) {
+func (s Stanza) Write(w io.Writer, prefix string, indent string, sortItems bool) (err error) {
 	return s.write(w, prefix, indent, "", sortItems, "")
 }
 
@@ -124,7 +124,7 @@ func getSortOrder() []string {
 	}
 }
 
-func (s stanza) write(w io.Writer, prefix string, indent string, currentIndent string, sortItems bool, top string) (err error) {
+func (s Stanza) write(w io.Writer, prefix string, indent string, currentIndent string, sortItems bool, top string) (err error) {
 	var keys []string
 	if sortItems {
 		for i := range s {
@@ -169,7 +169,7 @@ func (s stanza) write(w io.Writer, prefix string, indent string, currentIndent s
 	return
 }
 
-func (s stanza) writeLine(w io.Writer, prefix string, indent string, currentIndent string, sortItems bool, k string, top string) (err error) {
+func (s Stanza) writeLine(w io.Writer, prefix string, indent string, currentIndent string, sortItems bool, k string, top string) (err error) {
 	item := s[k]
 	switch v := item.(type) {
 	case string:
@@ -191,7 +191,7 @@ func (s stanza) writeLine(w io.Writer, prefix string, indent string, currentInde
 				return errors.New("cannot write: " + err.Error())
 			}
 		}
-	case stanza:
+	case Stanza:
 		_, err = w.Write([]byte(prefix + currentIndent + k + " {\n"))
 		if err != nil {
 			return errors.New("cannot write: " + err.Error())
@@ -215,29 +215,37 @@ func (s stanza) writeLine(w io.Writer, prefix string, indent string, currentInde
 	return
 }
 
-func (s stanza) Type(key string) ValueType {
+func (s Stanza) Type(key string) ValueType {
 	switch s[key].(type) {
 	case string, []string, []*string:
 		return ValueString
 	case nil:
 		return ValueNil
-	case stanza:
+	case Stanza:
 		return ValueStanza
 	default:
 		return ValueUnknown
 	}
 }
 
-func (s stanza) Stanza(key string) stanza {
+func (s Stanza) ListKeys() []string {
+	keys := []string{}
+	for key := range s {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func (s Stanza) Stanza(key string) Stanza {
 	switch k := s[key].(type) {
-	case stanza:
+	case Stanza:
 		return k
 	default:
 		return nil
 	}
 }
 
-func (s stanza) GetValues(key string) ([]*string, error) {
+func (s Stanza) GetValues(key string) ([]*string, error) {
 	ret := []*string{}
 	switch k := s[key].(type) {
 	case string:
@@ -250,15 +258,15 @@ func (s stanza) GetValues(key string) ([]*string, error) {
 		ret = k
 	case nil:
 		return nil, nil
-	case stanza:
-		return nil, errors.New("type is stanza")
+	case Stanza:
+		return nil, errors.New("type is Stanza")
 	default:
 		return nil, errors.New("unknown type")
 	}
 	return ret, nil
 }
 
-func (s stanza) SetValue(key string, value string) error {
+func (s Stanza) SetValue(key string, value string) error {
 	if s == nil {
 		return errors.New("stanza does not exist")
 	}
@@ -266,7 +274,7 @@ func (s stanza) SetValue(key string, value string) error {
 	return nil
 }
 
-func (s stanza) SetValues(key string, values []*string) error {
+func (s Stanza) SetValues(key string, values []*string) error {
 	if s == nil {
 		return errors.New("stanza does not exist")
 	}
@@ -283,7 +291,7 @@ func SliceToValues(val []string) []*string {
 	return r
 }
 
-func (s stanza) Delete(key string) error {
+func (s Stanza) Delete(key string) error {
 	if s == nil {
 		return errors.New("stanza does not exist")
 	}
@@ -291,13 +299,13 @@ func (s stanza) Delete(key string) error {
 	return nil
 }
 
-func (s stanza) NewStanza(key string) error {
+func (s Stanza) NewStanza(key string) error {
 	if s == nil {
 		return errors.New("parent stanza does not exist")
 	}
 	if _, ok := s[key]; ok {
 		return errors.New("stanza already exists")
 	}
-	s[key] = make(stanza)
+	s[key] = make(Stanza)
 	return nil
 }
